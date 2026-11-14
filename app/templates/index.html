@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h2>上传读数 CSV</h2>
+  <p class="hint">
+    CSV 需包含四列：<code>水表号, 采样时间, 累计读数, 修订号</code>（也接受
+    meter_id / sampled_at / reading / revision 等英文表头）。
+    同一水表同一时刻只采用最高修订号；若同一水表、时刻、修订号对应不同读数，
+    或合并后出现负用量，整批失败且已入库数据不变。
+  </p>
+  <form method="post" action="{{ url_for('main.upload') }}"
+        enctype="multipart/form-data" class="upload-form">
+    <input type="file" name="file" accept=".csv,text/csv" required>
+    <button type="submit">上传</button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>水表总览</h2>
+  {% if meters %}
+  <table>
+    <thead>
+      <tr>
+        <th>水表号</th><th>读数条数</th><th>区间数</th>
+        <th>最早采样</th><th>最新采样</th><th>累计用量</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in meters %}
+      <tr>
+        <td>{{ m.meter_id }}</td>
+        <td>{{ m.reading_count }}</td>
+        <td>{{ m.interval_count }}</td>
+        <td>{{ m.first_at }}</td>
+        <td>{{ m.last_at }}</td>
+        <td>{{ m.total_usage if m.total_usage is not none else 0 }}</td>
+        <td><a href="{{ url_for('main.meter_detail', meter_id=m.meter_id) }}">查看区间</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">还没有数据，请先上传 CSV。</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>最近上传记录</h2>
+  {% if uploads %}
+  <table>
+    <thead>
+      <tr><th>时间</th><th>文件名</th><th>状态</th><th>说明</th></tr>
+    </thead>
+    <tbody>
+      {% for u in uploads %}
+      <tr>
+        <td>{{ u.uploaded_at }}</td>
+        <td>{{ u.filename }}</td>
+        <td>
+          {% if u.status == 'applied' %}
+            <span class="tag tag-ok">成功</span>
+          {% else %}
+            <span class="tag tag-fail">失败</span>
+          {% endif %}
+        </td>
+        <td>{{ u.message }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">暂无上传记录。</p>
+  {% endif %}
+</section>
+{% endblock %}

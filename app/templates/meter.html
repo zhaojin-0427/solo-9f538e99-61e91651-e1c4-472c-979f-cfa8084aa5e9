@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}水表 {{ meter_id }} · 水表用量分析{% endblock %}
+{% block content %}
+<section class="card">
+  <h2>水表 {{ meter_id }} — 有效读数</h2>
+  <p class="hint">同一时刻仅保留最高修订号的读数。</p>
+  <table>
+    <thead>
+      <tr><th>采样时间</th><th>累计读数</th><th>修订号</th></tr>
+    </thead>
+    <tbody>
+      {% for r in readings %}
+      <tr>
+        <td>{{ r.sampled_at }}</td>
+        <td>{{ '%.3f'|format(r.reading) }}</td>
+        <td>{{ r.revision }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="card">
+  <h2>区间用量（按时间相邻读数计算）</h2>
+  {% if intervals %}
+  <table>
+    <thead>
+      <tr>
+        <th>开始时间</th><th>结束时间</th>
+        <th>开始读数（修订号）</th><th>结束读数（修订号）</th>
+        <th>区间用量</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for i in intervals %}
+      <tr>
+        <td>{{ i.start_time }}</td>
+        <td>{{ i.end_time }}</td>
+        <td>{{ '%.3f'|format(i.start_reading) }}（修订 {{ i.start_revision }}）</td>
+        <td>{{ '%.3f'|format(i.end_reading) }}（修订 {{ i.end_revision }}）</td>
+        <td class="usage">{{ '%.3f'|format(i.usage) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">只有一个读数，尚无法构成区间。</p>
+  {% endif %}
+  <p><a href="{{ url_for('main.index') }}">← 返回总览</a></p>
+</section>
+{% endblock %}

@@ -1,0 +1,14 @@
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      SECRET_KEY: change-me-in-production
+      DATABASE_PATH: /data/water.db
+    volumes:
+      - water-data:/data
+    restart: unless-stopped
+
+volumes:
+  water-data:
