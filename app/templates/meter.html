@@ -3,10 +3,13 @@
 {% block content %}
 <section class="card">
   <h2>水表 {{ meter_id }} — 有效读数</h2>
-  <p class="hint">同一时刻仅保留最高修订号的读数。</p>
+  <p class="hint">
+    同一时刻仅保留最高修订号的读数。「来源」指向首次接收该修订的抄表 CSV
+    及行号，可点击下载原文件；旧库迁移而来的读数显示为来源未知。
+  </p>
   <table>
     <thead>
-      <tr><th>采样时间</th><th>累计读数</th><th>修订号</th></tr>
+      <tr><th>采样时间</th><th>累计读数</th><th>修订号</th><th>来源</th></tr>
     </thead>
     <tbody>
       {% for r in readings %}
@@ -14,6 +17,16 @@
         <td>{{ r.sampled_at }}</td>
         <td>{{ '%.3f'|format(r.reading) }}</td>
         <td>{{ r.revision }}</td>
+        <td>
+          {% if r.source_upload_id %}
+            <a href="{{ url_for('main.download_upload', upload_id=r.source_upload_id) }}">
+              {{ r.source_filename or '原文件' }}
+            </a>
+            <span class="src-line">第 {{ r.source_line }} 行</span>
+          {% else %}
+            <span class="src-unknown">来源未知（旧库数据）</span>
+          {% endif %}
+        </td>
       </tr>
       {% endfor %}
     </tbody>
@@ -27,7 +40,8 @@
     <thead>
       <tr>
         <th>开始时间</th><th>结束时间</th>
-        <th>开始读数（修订号）</th><th>结束读数（修订号）</th>
+        <th>开始读数（修订号 / 来源）</th>
+        <th>结束读数（修订号 / 来源）</th>
         <th>区间用量</th>
       </tr>
     </thead>
@@ -36,8 +50,32 @@
       <tr>
         <td>{{ i.start_time }}</td>
         <td>{{ i.end_time }}</td>
-        <td>{{ '%.3f'|format(i.start_reading) }}（修订 {{ i.start_revision }}）</td>
-        <td>{{ '%.3f'|format(i.end_reading) }}（修订 {{ i.end_revision }}）</td>
+        <td>
+          {{ '%.3f'|format(i.start_reading) }}（修订 {{ i.start_revision }}）
+          <div class="src">
+            {% if i.start_source_upload_id %}
+              <a href="{{ url_for('main.download_upload', upload_id=i.start_source_upload_id) }}">
+                {{ i.start_source_filename or '原文件' }}
+              </a>
+              <span class="src-line">第 {{ i.start_source_line }} 行</span>
+            {% else %}
+              <span class="src-unknown">来源未知</span>
+            {% endif %}
+          </div>
+        </td>
+        <td>
+          {{ '%.3f'|format(i.end_reading) }}（修订 {{ i.end_revision }}）
+          <div class="src">
+            {% if i.end_source_upload_id %}
+              <a href="{{ url_for('main.download_upload', upload_id=i.end_source_upload_id) }}">
+                {{ i.end_source_filename or '原文件' }}
+              </a>
+              <span class="src-line">第 {{ i.end_source_line }} 行</span>
+            {% else %}
+              <span class="src-unknown">来源未知</span>
+            {% endif %}
+          </div>
+        </td>
         <td class="usage">{{ '%.3f'|format(i.usage) }}</td>
       </tr>
       {% endfor %}

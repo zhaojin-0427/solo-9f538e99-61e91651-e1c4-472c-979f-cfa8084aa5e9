@@ -6,7 +6,16 @@ Rules implemented here:
   inside the uploaded file or against stored data) fails the whole batch.
 * Late readings and corrections recompute the surrounding intervals.
 * If merging would produce a negative usage interval, the whole batch fails.
-* Re-uploading the same file is a no-op: no duplicate readings or intervals.
+* Re-uploading the same file is a no-op: no duplicate readings or intervals,
+  and the provenance (first upload that received a revision) is preserved.
+
+Provenance:
+* Every effective reading remembers the upload id and CSV line number of the
+  file that first introduced its currently-effective revision.
+* When a late reading or a higher revision rebuilds intervals, endpoints that
+  were not replaced keep pointing at their original source.
+* Re-uploading identical content does not rewrite the association.
+* Readings predating this feature have NULL sources ("来源未知").
 
 All DB mutations happen on the caller's connection; the caller controls the
 transaction so a failure leaves stored readings and intervals untouched.
@@ -172,8 +181,12 @@ def _check_internal_conflicts(rows):
         seen[key] = r.reading
 
 
-def apply_rows(conn, rows):
+def apply_rows(conn, rows, upload_id):
     """Merge parsed rows into `conn` and rebuild intervals for affected meters.
+
+    `upload_id` is the uploads row of the retained source file; every reading
+    whose effective revision is introduced by this batch is associated with
+    that upload and the row's CSV line number.
 
     Raises UploadError on conflict or negative usage; the caller must roll
     back the transaction so stored readings/intervals stay unchanged.
@@ -190,12 +203,14 @@ def apply_rows(conn, rows):
     for meter_id in sorted(by_meter):
         incoming = by_meter[meter_id]
 
-        # Current effective readings for this meter: time -> (reading, revision)
+        # Current effective readings for this meter:
+        # time -> (reading, revision, source_upload_id, source_line)
         effective = {
-            row["sampled_at"]: (row["reading"], row["revision"])
+            row["sampled_at"]: (row["reading"], row["revision"],
+                                row["source_upload_id"], row["source_line"])
             for row in conn.execute(
-                "SELECT sampled_at, reading, revision FROM readings "
-                "WHERE meter_id = ?", (meter_id,))
+                "SELECT sampled_at, reading, revision, source_upload_id, "
+                "source_line FROM readings WHERE meter_id = ?", (meter_id,))
         }
         before = dict(effective)
 
@@ -208,16 +223,21 @@ def apply_rows(conn, rows):
                     f"{r.revision} 已对应读数 {cur[0]}，本次文件为 {r.reading}"
                 )
 
-        # Merge: keep the highest revision per timestamp.
+        # Merge: keep the highest revision per timestamp. A strictly higher
+        # revision takes over provenance; equal/lower revisions (including a
+        # byte-identical re-upload) leave the original association untouched.
         for r in incoming:
             cur = effective.get(r.sampled_at)
             if cur is None or r.revision > cur[1]:
-                effective[r.sampled_at] = (r.reading, r.revision)
+                effective[r.sampled_at] = (
+                    r.reading, r.revision, upload_id, r.line
+                )
 
         # Rebuild intervals from time-adjacent readings.
         points = sorted(effective.items())
         intervals = []
-        for (t1, (v1, rev1)), (t2, (v2, rev2)) in zip(points, points[1:]):
+        for (t1, (v1, rev1, _, _)), (t2, (v2, rev2, _, _)) in zip(
+                points, points[1:]):
             usage = v2 - v1
             if usage < -EPS:
                 raise UploadError(
@@ -229,9 +249,10 @@ def apply_rows(conn, rows):
 
         conn.execute("DELETE FROM readings WHERE meter_id = ?", (meter_id,))
         conn.executemany(
-            "INSERT INTO readings (meter_id, sampled_at, reading, revision) "
-            "VALUES (?, ?, ?, ?)",
-            [(meter_id, t, v, rev) for t, (v, rev) in points],
+            "INSERT INTO readings (meter_id, sampled_at, reading, revision, "
+            "source_upload_id, source_line) VALUES (?, ?, ?, ?, ?, ?)",
+            [(meter_id, t, v, rev, src_id, src_line)
+             for t, (v, rev, src_id, src_line) in points],
         )
         conn.execute("DELETE FROM intervals WHERE meter_id = ?", (meter_id,))
         conn.executemany(

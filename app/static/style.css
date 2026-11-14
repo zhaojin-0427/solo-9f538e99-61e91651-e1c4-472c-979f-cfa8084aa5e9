@@ -79,3 +79,7 @@ td.usage { font-weight: 600; color: #0f6cbd; }
 
 a { color: #0f6cbd; }
 code { background: #eef2f6; padding: 1px 5px; border-radius: 4px; }
+
+.src { font-size: 12px; color: #5c6b7a; margin-top: 2px; }
+.src-line { color: #8a97a3; }
+.src-unknown { color: #8a97a3; font-size: 12px; font-style: italic; }

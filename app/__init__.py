@@ -10,6 +10,11 @@ def create_app(test_config=None):
         DATABASE=os.environ.get(
             "DATABASE_PATH", os.path.join(app.instance_path, "water.db")
         ),
+        # Original CSV files of successful uploads are retained here so each
+        # effective reading can be traced back to its source file + line.
+        UPLOAD_FOLDER=os.environ.get(
+            "UPLOAD_FOLDER", os.path.join(app.instance_path, "uploads")
+        ),
         MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16 MB upload cap
     )
     if test_config:
@@ -18,6 +23,7 @@ def create_app(test_config=None):
     db_path = app.config["DATABASE"]
     if db_path != ":memory:":
         os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
+    os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
     from . import db
 

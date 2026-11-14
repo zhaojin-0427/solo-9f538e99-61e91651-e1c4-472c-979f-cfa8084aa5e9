@@ -7,6 +7,8 @@
     meter_id / sampled_at / reading / revision 等英文表头）。
     同一水表同一时刻只采用最高修订号；若同一水表、时刻、修订号对应不同读数，
     或合并后出现负用量，整批失败且已入库数据不变。
+    成功上传后系统留存原文件，并把每条生效读数关联到首次接收该修订的文件与行号，
+    可在水表详情页追溯并下载原文件。
   </p>
   <form method="post" action="{{ url_for('main.upload') }}"
         enctype="multipart/form-data" class="upload-form">
@@ -49,7 +51,7 @@
   {% if uploads %}
   <table>
     <thead>
-      <tr><th>时间</th><th>文件名</th><th>状态</th><th>说明</th></tr>
+      <tr><th>时间</th><th>文件名</th><th>状态</th><th>说明</th><th>原文件</th></tr>
     </thead>
     <tbody>
       {% for u in uploads %}
@@ -64,6 +66,13 @@
           {% endif %}
         </td>
         <td>{{ u.message }}</td>
+        <td>
+          {% if u.status == 'applied' and u.stored_name %}
+            <a href="{{ url_for('main.download_upload', upload_id=u.id) }}">下载</a>
+          {% else %}
+            <span class="src-unknown">—</span>
+          {% endif %}
+        </td>
       </tr>
       {% endfor %}
     </tbody>

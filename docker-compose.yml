@@ -6,6 +6,7 @@ services:
     environment:
       SECRET_KEY: change-me-in-production
       DATABASE_PATH: /data/water.db
+      UPLOAD_FOLDER: /data/uploads
     volumes:
       - water-data:/data
     restart: unless-stopped

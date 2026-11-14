@@ -8,9 +8,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 ENV DATABASE_PATH=/data/water.db \
+    UPLOAD_FOLDER=/data/uploads \
     PYTHONUNBUFFERED=1
 
-RUN mkdir -p /data
+RUN mkdir -p /data/uploads
 VOLUME ["/data"]
 
 EXPOSE 8000
